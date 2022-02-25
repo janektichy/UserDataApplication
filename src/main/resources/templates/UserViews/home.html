@@ -1,0 +1,284 @@
+<!DOCTYPE HTML>
+<html lang="en" xmlns:th="http://www.thymeleaf.org" xmlns="http://www.w3.org/1999/html">
+<head>
+    <meta charset="UTF-8"/>
+    <title>Spring Boot Thymeleaf Application - Bootstrap Autocomplete</title>
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css" integrity="sha384-Gn5384xqQ1aoWXA+058RXPxPg6fy4IWvTNh0E263XmFcJlSAwiGgFAW/dAiS6JXm" crossorigin="anonymous">
+    <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.9.2/dist/umd/popper.min.js" ></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.1/dist/js/bootstrap.min.js" integrity="sha384-Atwg2Pkwv9vp0ygtn1JAojH0nYbwNJLPhwyoVbhoPwBhjQPR5VtM2+xf0Uwh9KtT" crossorigin="anonymous"></script>
+
+</head>
+<body>
+
+<nav class="navbar navbar-expand-lg navbar-dark bg-dark static-top" id="header">
+
+    <form action="/users/reset" method="post">
+        <button class="btn btn-secondary" id="reset-button">Reset Filters</button>
+    </form>
+
+    <p id="nav-divider"></p>
+<!-- User Filtering form in header -->
+    <form id="filterForm" action="/users/filter" method="post">
+        <div class="form-group">
+            <label for="search">Search</label>
+            <input th:value="${filterParams.search != null} ? ${filterParams.search}" id="search" type="text" class="form-control" placeholder="name, surname or email" name="search">
+        </div>
+        <div class="form-group">
+            <label for="statusSelect">Status</label>
+            <select id="statusSelect" name="status" class="form-control">
+                <option value="">Show all</option>
+                <option value="active" th:selected="${filterParams.status == 'active'} ? 'selected'">Active only</option>
+                <option value="deactivated" th:selected="${filterParams.status == 'deactivated'} ? 'selected'">Deactivated only</option>
+            </select>
+        </div>
+        <div class="form-group">
+            <label for="presetSelect">Preset</label>
+            <select id="presetSelect" name="preset" class="form-control">
+                <option value="">Any</option>
+                <option value="420" th:selected="${filterParams.preset == '420'} ? 'selected'">+ 420</option>
+                <option value="735" th:selected="${filterParams.preset == '735'} ? 'selected'">+ 735</option>
+                <option value="450" th:selected="${filterParams.preset == '450'} ? 'selected'">+ 450</option>
+            </select>
+        </div>
+        <div class="form-group">
+            <label for="dateFrom">From</label>
+            <input type="date" th:value="${filterParams.from != null} ? ${filterParams.from}" name="from" id="dateFrom" class="form-control">
+        </div>
+        <div class="form-group">
+            <label for="dateTo">To</label>
+            <input type="date" th:value="${filterParams.to != null} ? ${filterParams.to}" name="to" id="dateTo" class="form-control">
+        </div>
+        <button type="submit" class="btn btn-primary" id="filter-button">Filter</button>
+    </form>
+</nav>
+
+<!-- Error Message if no Users found -->
+<h2 th:if="${errorMessage != null}" th:text="${errorMessage}" id="errorMessage"></h2>
+
+<div th:if="${errorMessage == null}" class="user-table-container">
+    <!-- User Edit Form, shown only after edit request, where userToEdit object is added as a flash attribute -->
+    <form th:if="${userToEdit != null}" id="edit-form" action="/users/edit/save" method="post">
+        <input type="hidden" th:value="${userToEdit.id}" name="id">
+        <input type="hidden" th:value="${page}" name="page">
+        <div class="form-group">
+            <label for="nameInput">Name</label>
+            <input class="form-control" type="text" id="nameInput" name="name" th:value="${userToEdit.name}">
+        </div>
+        <div class="form-group">
+            <label for="surnameInput">Surname</label>
+            <input class="form-control" type="text" id="surnameInput" name=surname th:value="${userToEdit.surname}">
+        </div>
+        <div class="form-group">
+            <label for="emailInput">Email</label>
+            <input class="form-control" type="email" id="emailInput" name="email" th:value="${userToEdit.email}">
+        </div>
+        <div class="form-group">
+            <label for="presetInput">Preset</label>
+            <select class="form-control" name="preset" id="presetInput">
+                <option value="420" th:selected="${userToEdit.phoneNumber[0] == '420'} ? 'selected'">420</option>
+                <option value="735" th:selected="${userToEdit.phoneNumber[0] == '735'} ? 'selected'">735</option>
+                <option value="450" th:selected="${userToEdit.phoneNumber[0] == '450'} ? 'selected'">450</option>
+            </select>
+        </div>
+        <div class="form-group">
+            <label for="numberInput">Phone number</label>
+            <input class="form-control" type="tel" size="9" name="phoneNumber" id="numberInput" th:value="${userToEdit.phoneNumber[1]}" pattern="[0-9]{9}">
+        </div>
+        <div class="form-group edit-form-buttons">
+            <button type="submit" name="action" value="save" class="btn btn-success">Save</button>
+            <a class="btn btn-danger"  th:href="'/users?page=' + ${page}">Cancel</a>
+        </div>
+    </form>
+
+    <div class="col-lg-10 mt-5 mb-5">
+            <!-- User Table -->
+            <table id="user-table" class="table table-bordered" style="width: 100%">
+                <thead>
+                <tr>
+                    <th>Id</th>
+                    <th>Name</th>
+                    <th>Surname</th>
+                    <th>Email</th>
+                    <th>Start date</th>
+                    <th>Phone number</th>
+                    <th>Status</th>
+                    <th class="table-button"></th>
+                    <th class="table-button"></th>
+                </tr>
+                </thead>
+                <tbody>
+                <tr th:each="user : ${users}" >
+                    <td th:text="${user.id}"></td>
+                    <td th:text="${user.name}"></td>
+                    <td th:text="${user.surname}"></td>
+                    <td th:text="${user.email}"></td>
+                    <td th:text="${user.dateOfCreation}"></td>
+                    <td th:text="'+' + ${user.phoneNumber[0] + ' ' + user.phoneNumber[1]}"></td>
+                    <form method="post" action="/users/status">
+                        <td>
+                           <button th:class="${user.status} ? 'activated-button' : 'deactivated-button'" th:if="${user.status}" value="false" name="changeStatus"></button>
+                            <button th:class="${user.status} ? 'activated-button' : 'deactivated-button'" th:if="${!user.status}" value="true" name="changeStatus"></button>
+                            <input type="hidden" name="id" th:value="${user.id}">
+                            <input type="hidden" name="page" th:value="${page}">
+                        </td>
+                    </form>
+                    <td class="table-button">
+                        <form action="/users/edit" method="post">
+                            <button th:value="${user.id}" name="id" class="edit-button" title="Edit"><img src="images\edit.png" height="18px" width="18px"></button>
+                            <input type="hidden" name="page" th:value="${page}">
+                        </form>
+                    </td>
+                    <td class="table-button">
+                        <form action="/users/delete" method="post">
+                            <button th:value="${user.id}" name="id" class="delete-button" title="Delete"><img src="images\delete.png" height="18px" width="18px"></button>
+                            <input type="hidden" name="page" th:value="${page}">
+                        </form>
+                    </td>
+                </tr>
+                </tbody>
+            </table>
+
+            <!-- Paging -->
+            <form>
+                <nav aria-label="...">
+                    <ul class="pagination">
+                        <li th:attr="class=${page == 1} ? 'page-item disabled' : 'page-item enabled'">
+                            <button class="page-link" name = "page" th:value="${1}">First</button>
+                        </li>
+                        <li th:if="${page > 1}" class="page-item"><button class="page-link" name = "page" th:value="${page - 1}" th:text="${page - 1}"></button></li>
+                        <li class="page-item active">
+                            <button class="page-link" name = "page" th:value="${page}" th:text="${page}"></button>
+                        </li>
+                        <li th:if="${page < amountOfPages}"class="page-item"><button class="page-link" name = "page" th:value="${page + 1}" th:text="${page + 1}"></button></li>
+                        <li th:attr="class=${page == amountOfPages} ? 'page-item disabled' : 'page-item enabled'">
+                           <button class="page-link" name = "page" th:value="${amountOfPages}">Last</button>
+                        </li>
+                    </ul>
+                </nav>
+            </form>
+
+        </div>
+    </div>
+
+</body>
+</html>
+<style>
+
+label{
+    margin-bottom: 0px;
+}
+
+#filterForm {
+    position: relative;
+    width: 80%;
+    display: flex;
+    flex-direction: row;
+    justify-content: space-evenly;
+}
+
+#filterForm select{
+    width: auto;
+}
+#filterForm label{
+    color: antiquewhite;
+    vertical-align: top;
+}
+#header{
+    height: 110px;
+    display: flex;
+    justify-content: space-evenly;
+}
+#nav-divider{
+    background-color: antiquewhite;
+    height: 100px;
+    width: 2px;
+    margin-top: 20px;
+}
+#filter-button{
+    height: fit-content;
+    position: relative;
+    top: 25px;
+    left: 10px;
+}
+#user-table tr td:last-child{
+    border: none;
+}
+.table-button{
+    border-right-style: hidden!important;
+    border-bottom-style: hidden!important;
+    border-top-style: hidden!important;
+}
+.btn-light{
+    padding: 0px;
+}
+.edit-button{
+    margin-left: -10px;
+}
+.delete-button{
+    margin-left: -25px;
+}
+.edit-button, .delete-button{
+    border: none;
+    background: transparent;
+    border-radius: 10px;
+}
+.edit-button:hover {
+    cursor: pointer;
+    background-color: cornflowerblue;
+}
+.delete-button:hover{
+    cursor: pointer;
+    background-color: indianred;
+}
+#edit-form{
+    display: flex;
+    flex-direction: row;
+    justify-content: space-evenly;
+    width: fit-content;
+    border: 2px solid cornflowerblue;
+    padding: 10px;
+    margin-top: 30px;
+    margin-left: 20px;
+    margin-bottom: -20px;
+}
+#edit-form .form-group{
+    width: fit-content;
+    margin: 5px;
+}
+#edit-form input{
+    width: min-content;
+}
+#edit-form .row{
+    display: flex;
+    flex-direction: row;
+    flex-wrap: nowrap;
+}
+.edit-form-buttons{
+    position: relative;
+    top: 23px;
+}
+.user-table-container{
+    position: absolute;
+    left: 5%;
+    width: 100%;
+    padding-left: 100px;
+}
+.activated-button{
+    background-color: forestgreen;
+    border: 1px solid black;
+    border-radius: 100%;
+    width: 15px;
+    height: 17px;
+}
+.deactivated-button{
+    background-color: red;
+    border: 1px solid black;
+    border-radius: 100%;
+    width: 15px;
+    height: 17px;
+}
+
+.deactivated-button:hover, .activated-button:hover{
+    cursor: pointer;
+}
+</style>
